@@ -2,37 +2,54 @@ const tweet_body = document.querySelector('.tweet-body');
 const tweetInput = document.querySelector('.tweet-input-box');
 const tweetBtn = document.querySelector('.tweet-btn');
 const deleteBtn = document.querySelector('.delete-btn');
+const editBtn = document.querySelector('.edit-btn');
 const tweetNumber = document.querySelector('.tweet-number');
 const tweetSearch = document.querySelector('.data-search');
 const msg = document.querySelector('.msg');
 const wordCount = document.querySelector('.word-count span');
-
+const updateBtnPlace = document.querySelector('p.word-count');
 
 wordCount.innerHTML = 0;
-// Tweet Object Array
-let tweetData = [
-    // {
-    //     id: 0,
-    //     tweetText: "Mahmud",
-    //     tweetTime: "10:20"
-    // },
-    // {
-    //     id: 1,
-    //     tweetText: "Fahim",
-    //     tweetTime: "10:30"
-    // },
-    // {
-    //     id: 2,
-    //     tweetText: "Fuad",
-    //     tweetTime: "10:40"
-    // },
-    // {
-    //     id: 3,
-    //     tweetText: "Sonia",
-    //     tweetTime: "10:50"
-    // }
-];
 
+// Get Data From LocalStorage
+let tweetData = getDataFromLocalStorage();
+
+function getDataFromLocalStorage(){
+    let tweets = "";
+    if(localStorage.getItem('tweetItems') === null){
+        tweets = [];
+    }else{
+        tweets = JSON.parse(localStorage.getItem('tweetItems'));
+    }
+    return tweets;
+}
+
+// Save Data to LocalStorage
+function saveDataToLocalStorage(tweet){
+    let tweets = "";
+    if(localStorage.getItem('tweetItems') === null){
+        tweets = [];
+        tweets.push(tweet)
+        localStorage.setItem('tweetItems', JSON.stringify(tweets))
+    }else{
+        tweets = JSON.parse(localStorage.getItem('tweetItems'));
+        tweets.push(tweet)
+        localStorage.setItem('tweetItems', JSON.stringify(tweets))
+    }
+}
+// Delete Data from LocalStorage
+function deleteItemFromLocalStorage(id){
+    const tweets = JSON.parse(localStorage.getItem('tweetItems'));
+
+    // return result array
+    let result = tweets.filter(tweetItems => {
+        return tweetItems.id !== id;
+    });
+    localStorage.setItem('tweetItems', JSON.stringify(result))
+    if(result.length === 0){
+        location.reload();
+    }
+}
 // Display Tweet from Object Array
 function tweetDataElement(tweetDataList){
     
@@ -54,7 +71,8 @@ function tweetDataElement(tweetDataList){
                 tweet_extra.innerHTML = `
                     <i class="fa fa-trash float-right delete-btn"></i>
                     <i class="fa fa-edit float-right edit-btn"></i>
-                    <i class="fa fa-clock float-right"> ${moment().startOf('tweet.tweetTime').fromNow()}</i>`;
+                    <i class="fa fa-clock float-right">${moment().startOf(tweet.tweetTime).fromNow() }</i>`;
+                    // ${tweet.tweetTime} moment().startOf(tweet.tweetTime).fromNow() 
                 single_tweet_div.append(tweet_extra);
                 tweet_body.append(single_tweet_div);
         });
@@ -76,36 +94,79 @@ tweetBtn.addEventListener('click', (e) => {
     if(tweetText === ''){
         alert('Data must be input')
     }else{
-        tweetData.push({
+        const data = {
             id,
             tweetText,
             tweetTime
-        });
-    }
-    tweet_body.innerHTML = '';
+        };
+        tweetData.push(data)
+        tweet_body.innerHTML = '';
+    saveDataToLocalStorage(data)
     tweetDataElement(tweetData);
     tweetInput.value = '';
     wordCount.innerHTML = 0;
+    }
+    
 });
 
-// Tweet Delete
+function findTweetById(id){
+    return tweetData.find(tweetItems => tweetItems.id === id)
+}
+// Tweet Delete Edit/Update
 tweet_body.addEventListener('click', (e) => {
+    const target = e.target.parentElement.parentElement;
+    const id = parseInt(target.id.split('-')[1]);
+
     if(e.target.classList.contains('delete-btn')){
-        // Remove from UI
-        const target = e.target.parentElement.parentElement;
+
         e.target.parentElement.parentElement.parentElement.removeChild(target);
-        // Remove data from storage/Object Array
-        const id = parseInt(target.id.split('-')[1]);
+       
         let result = tweetData.filter(product => {
             return product.id !== id;
         });
         tweetData = result;
+        deleteItemFromLocalStorage(id);
+    }else if(e.target.classList.contains('edit-btn')){
+        const foundTweet = findTweetById(id)
+        if(!foundTweet){
+            alert('error: Invalid Data')
+        }
+        tweetInput.value = foundTweet.tweetText
+
+
+        // Hide Tweet Button
+        tweetBtn.style.display = 'none'
+        //Create Update Button
+        const updateBtnEle = `<button type='submit' class='btn cst-btn update-product'>Update</button> `;
+        updateBtnPlace.insertAdjacentHTML('afterend', updateBtnEle);
+
+        //Add event listener Update button
+        document.querySelector('.update-product').addEventListener('click', (e) => {
+            if(tweetInput.value === ''){
+                alert('Please fill out the tweet box')
+            }else{
+                tweetData = tweetData.map((tweetItems) => {
+                    if(tweetItems.id === id){
+                        return {
+                        ...tweetItems,
+                        tweetText: tweetInput.value
+                        }
+                        
+                    }else{
+                        return tweetItems
+                    }
+                })
+                tweetDataElement(tweetData)
+                localStorage.setItem('tweetItems', JSON.stringify(tweetData))
+            }
+        })
+
     }
 });
 
 tweetSearch.addEventListener('keyup', (e) => {
     const searchText = e.target.value.toLowerCase();
-    console.log(searchText);
+   
     document.querySelectorAll('.tweet-body .single-tweet').forEach(tweet => {
 
         const tweetName = tweet.children[1].textContent.toLowerCase();
@@ -123,9 +184,4 @@ tweetSearch.addEventListener('keyup', (e) => {
 tweetInput.addEventListener('keyup', (e) => {
     let inputVal = tweetInput.value.length;
     wordCount.innerHTML = inputVal;
-    // tweetInput.addEventListener('keydown', (e) => {
-    //     if(inputVal >= 50){
-    //         e.preventDefault()
-    //     }
-    // });
 });
